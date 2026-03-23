@@ -1,0 +1,19 @@
+{
+  "name": "瑞昌藥局人時生產力預警系統",
+  "builds": [
+    {
+      "src": "backend/server.js",
+      "use": "@zeabur/nodejs"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/backend/server.js"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production",
+    "BASE_PATH": "/productivity"
+  }
+}

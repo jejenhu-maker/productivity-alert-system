@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>輸入月份資料 — 瑞昌藥局 人時生產力預警系統</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-wrapper">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <a href="index.html" class="sidebar-brand">
+      <div class="brand-icon"><i class="bi bi-graph-up-arrow"></i></div>
+      <span class="brand-title">瑞昌藥局</span>
+      <span class="brand-sub">人時生產力預警系統</span>
+    </a>
+    <div class="sidebar-nav">
+      <div class="sidebar-section-label">主要功能</div>
+      <a href="index.html"><span class="nav-icon"><i class="bi bi-speedometer2"></i></span> 總覽儀表板</a>
+      <a href="input.html" class="active"><span class="nav-icon"><i class="bi bi-pencil-square"></i></span> 輸入月份資料</a>
+      <a href="reports.html"><span class="nav-icon"><i class="bi bi-bar-chart-line"></i></span> 分析報表</a>
+      <div class="sidebar-section-label" style="margin-top:0.75rem;">管理</div>
+      <a href="stores.html"><span class="nav-icon"><i class="bi bi-shop"></i></span> 門市管理</a>
+      <a href="employees.html"><span class="nav-icon"><i class="bi bi-people"></i></span> 員工管理</a>
+    </div>
+    <div class="sidebar-footer">瑞昌藥局 &copy; 2024</div>
+  </nav>
+
+  <div class="main-content">
+    <header class="page-header">
+      <div class="page-header-title">
+        <i class="bi bi-pencil-square text-primary"></i> 輸入月份工時與營收資料
+      </div>
+    </header>
+
+    <div class="page-content">
+      <div class="row g-3">
+
+        <!-- Left: Input Form -->
+        <div class="col-lg-7">
+          <div class="form-section">
+            <div class="form-section-title">
+              <i class="bi bi-pencil-square text-primary"></i> 月份資料輸入
+            </div>
+
+            <form id="inputForm">
+              <!-- Store & Period -->
+              <div class="form-grid mb-3">
+                <div class="form-group">
+                  <label>門市 <span class="required">*</span></label>
+                  <select id="inputStoreId" class="form-control" required>
+                    <option value="">請選擇門市</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>年份 <span class="required">*</span></label>
+                  <select id="inputYear" class="form-control" required></select>
+                </div>
+                <div class="form-group">
+                  <label>月份 <span class="required">*</span></label>
+                  <select id="inputMonth" class="form-control" required></select>
+                </div>
+              </div>
+
+              <!-- Divider -->
+              <div class="form-section-title" style="font-size:0.82rem;margin-bottom:0.75rem;">
+                <i class="bi bi-calculator text-warning"></i> 預估數據 (月初填入)
+              </div>
+
+              <div class="form-grid mb-3">
+                <div class="form-group">
+                  <label>預估總工時 (小時)</label>
+                  <input type="number" id="inputEstHours" class="form-control"
+                         min="0" step="0.5" placeholder="例: 320">
+                  <div class="text-muted fs-xs mt-1">全店員工當月預估工時合計</div>
+                </div>
+                <div class="form-group">
+                  <label>預估營收 (NT$)</label>
+                  <input type="number" id="inputEstRevenue" class="form-control"
+                         min="0" step="1000" placeholder="例: 1500000">
+                  <div class="text-muted fs-xs mt-1">當月預估總營收</div>
+                </div>
+              </div>
+
+              <div class="form-section-title" style="font-size:0.82rem;margin-bottom:0.75rem;">
+                <i class="bi bi-check2-circle text-success"></i> 實際數據 (月底填入，選填)
+              </div>
+
+              <div class="form-grid mb-3">
+                <div class="form-group">
+                  <label>實際總工時 (小時)</label>
+                  <input type="number" id="inputActHours" class="form-control"
+                         min="0" step="0.5" placeholder="月底後填入">
+                </div>
+                <div class="form-group">
+                  <label>實際營收 (NT$)</label>
+                  <input type="number" id="inputActRevenue" class="form-control"
+                         min="0" step="1000" placeholder="月底後填入">
+                </div>
+              </div>
+
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>填表人</label>
+                  <input type="text" id="inputSubmittedBy" class="form-control" placeholder="填表人姓名">
+                </div>
+                <div class="form-group">
+                  <label>備註</label>
+                  <textarea id="inputNotes" class="form-control" rows="2" placeholder="特殊說明或備注..."></textarea>
+                </div>
+              </div>
+
+              <!-- Submit -->
+              <div class="mt-3 d-flex gap-2">
+                <button type="submit" id="inputSubmitBtn" class="btn btn-primary">
+                  <i class="bi bi-check-lg"></i> 提交資料
+                </button>
+                <button type="reset" class="btn btn-outline">
+                  <i class="bi bi-x"></i> 清除
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Recent Submissions -->
+          <div class="table-container">
+            <div class="table-header">
+              <div class="table-title"><i class="bi bi-clock-history"></i> 近期提交記錄</div>
+            </div>
+            <div class="table-responsive">
+              <table>
+                <thead>
+                  <tr>
+                    <th>月份</th>
+                    <th>預估工時</th>
+                    <th>預估營收</th>
+                    <th>實際工時</th>
+                    <th>實際營收</th>
+                    <th>生產力</th>
+                    <th>狀態</th>
+                  </tr>
+                </thead>
+                <tbody id="recentHistory">
+                  <tr><td colspan="7" class="text-center text-muted py-3">請先選擇門市</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Preview & Employee Weights -->
+        <div class="col-lg-5">
+          <!-- Live Preview -->
+          <div class="form-section mb-3">
+            <div class="form-section-title">
+              <i class="bi bi-eye text-primary"></i> 即時計算預覽
+            </div>
+            <div id="livePreview">
+              <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> 請選擇門市並輸入工時與營收以預覽計算結果
+              </div>
+            </div>
+          </div>
+
+          <!-- Employee Weight Info -->
+          <div class="form-section">
+            <div class="form-section-title">
+              <i class="bi bi-people text-primary"></i> 門市員工加權資訊
+            </div>
+            <div id="employeeWeightInfo">
+              <div class="text-muted fs-sm text-center py-2">請先選擇門市</div>
+            </div>
+          </div>
+
+          <!-- Help Card -->
+          <div class="form-section">
+            <div class="form-section-title">
+              <i class="bi bi-question-circle text-warning"></i> 填表說明
+            </div>
+            <div style="font-size:0.82rem;color:#374151;line-height:1.7;">
+              <p class="mb-2"><strong>1. 月初填入（預估值）：</strong><br>
+              在月份開始時，填入本月預估總工時與預估營收，系統將立即計算預警狀態。</p>
+
+              <p class="mb-2"><strong>2. 月底更新（實際值）：</strong><br>
+              月份結束後，填入實際工時與實際營收。系統優先使用實際數據計算生產力。</p>
+
+              <p class="mb-2"><strong>3. 加權計算方式：</strong><br>
+              加權工時 = 總工時 × 員工平均加權係數<br>
+              生產力 = 營收 ÷ 加權工時</p>
+
+              <p class="mb-0"><strong>4. 預警門檻：</strong><br>
+              <span class="badge-status green">🟢 達標</span> 達成率 ≥ 100%<br>
+              <span class="badge-status yellow">🟡 警示</span> 達成率 70-99%<br>
+              <span class="badge-status red">🔴 危險</span> 達成率 &lt; 70%</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="js/app.js"></script>
+<script src="js/input.js"></script>
+</body>
+</html>
