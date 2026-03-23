@@ -1,6 +1,6 @@
 /**
  * 瑞昌藥局 人時生產力預警系統
- * Main Express Server - async startup using sql.js
+ * Main Express Server
  */
 
 const express = require('express');
@@ -10,12 +10,17 @@ const morgan = require('morgan');
 const path = require('path');
 
 async function startServer() {
+  console.log('🚀 Starting server...');
+  
   // Initialize database FIRST (sql.js is async)
-  const db = await require('./database');
+  try {
+    const dbModule = require('./database');
+    const db = await dbModule();
+    console.log('✅ Database initialized successfully');
 
-  // Make db available to all routes via app.locals
-  const app = express();
-  app.locals.db = db;
+    // Make db available to all routes via app.locals
+    const app = express();
+    app.locals.db = db;
 
   const PORT = process.env.PORT || 3000;
   const BASE_PATH = process.env.BASE_PATH || '';
@@ -88,23 +93,30 @@ async function startServer() {
     });
   });
 
-  // =============================================
-  // Start server
-  // =============================================
-  app.listen(PORT, () => {
-    console.log('================================================');
-    console.log('  瑞昌藥局 人時生產力預警系統');
-    console.log('  Ruichang Pharmacy Productivity Alert System');
-    console.log('================================================');
-    console.log(`  Server running at: http://localhost:${PORT}`);
-    console.log(`  Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log('================================================');
-  });
+    // =============================================
+    // Start server
+    // =============================================
+    const server = app.listen(PORT, () => {
+      console.log('================================================');
+      console.log('  瑞昌藥局 人時生產力預警系統');
+      console.log('  Ruichang Pharmacy Productivity Alert System');
+      console.log('================================================');
+      console.log(`  Server running at: http://localhost:${PORT}`);
+      console.log(`  Base path: ${BASE_PATH || '/'}`);
+      console.log(`  Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log('================================================');
+    });
 
-  return app;
+    return { app, server };
+    
+  } catch (error) {
+    console.error('❌ Database initialization failed:', error);
+    throw error;
+  }
 }
 
+// Start server with proper error handling
 startServer().catch(err => {
-  console.error('Failed to start server:', err);
+  console.error('💥 Failed to start server:', err);
   process.exit(1);
 });

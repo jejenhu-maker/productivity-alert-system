@@ -312,5 +312,5 @@ function seedData(db) {
   }
 }
 
-// Export a promise that resolves to the db wrapper
-module.exports = getDb();
+// Export the getDb function
+module.exports = getDb;
