@@ -3,17 +3,17 @@
  */
 const express = require('express');
 const router = express.Router();
-const db = require('../database');
 const { validateMonthly, getEmployeeWeight } = require('../middleware/validator');
 
 /**
  * Calculate weighted hours for a store in a given period
  * Uses total store hours divided proportionally by employee weights
+ * @param {object} db - Database instance
  * @param {number} storeId
  * @param {number} totalHours
  * @returns {number} weighted hours
  */
-function calculateWeightedHours(storeId, totalHours) {
+function calculateWeightedHours(db, storeId, totalHours) {
   const employees = db.prepare(`
     SELECT seniority_years, position, hourly_rate
     FROM employees
@@ -30,8 +30,12 @@ function calculateWeightedHours(storeId, totalHours) {
 
 /**
  * Calculate total labor cost for a store
+ * @param {object} db - Database instance
+ * @param {number} storeId
+ * @param {number} totalHours
+ * @returns {number} labor cost
  */
-function calculateLaborCost(storeId, totalHours) {
+function calculateLaborCost(db, storeId, totalHours) {
   const employees = db.prepare(`
     SELECT hourly_rate FROM employees WHERE store_id = ? AND active = 1
   `).all(storeId);
@@ -60,13 +64,13 @@ router.get('/', (req, res) => {
 
     query += ' ORDER BY md.year DESC, md.month DESC, s.id';
 
-    const rows = db.prepare(query).all(...params);
+    const rows = req.db.prepare(query).all(...params);
 
     const enriched = rows.map(row => {
       const hours = row.actual_hours || row.estimated_hours || 0;
       const revenue = row.actual_revenue || row.estimated_revenue || 0;
-      const weightedHrs = calculateWeightedHours(row.store_id, hours);
-      const laborCost = calculateLaborCost(row.store_id, hours);
+      const weightedHrs = calculateWeightedHours(req.db, row.store_id, hours);
+      const laborCost = calculateLaborCost(req.db, row.store_id, hours);
       const productivity = weightedHrs > 0 ? parseFloat((revenue / weightedHrs).toFixed(2)) : 0;
       const ratio = row.target_productivity > 0 ? parseFloat((productivity / row.target_productivity * 100).toFixed(1)) : 0;
       const costRatio = revenue > 0 ? parseFloat((laborCost / revenue * 100).toFixed(1)) : 0;
@@ -96,7 +100,7 @@ router.get('/', (req, res) => {
 // GET /api/monthly/:id
 router.get('/:id', (req, res) => {
   try {
-    const row = db.prepare(`
+    const row = req.db.prepare(`
       SELECT md.*, s.name as store_name, s.code as store_code, s.target_productivity
       FROM monthly_data md
       JOIN stores s ON md.store_id = s.id
@@ -107,8 +111,8 @@ router.get('/:id', (req, res) => {
 
     const hours = row.actual_hours || row.estimated_hours || 0;
     const revenue = row.actual_revenue || row.estimated_revenue || 0;
-    const weightedHrs = calculateWeightedHours(row.store_id, hours);
-    const laborCost = calculateLaborCost(row.store_id, hours);
+    const weightedHrs = calculateWeightedHours(req.db, row.store_id, hours);
+    const laborCost = calculateLaborCost(req.db, row.store_id, hours);
     const productivity = weightedHrs > 0 ? parseFloat((revenue / weightedHrs).toFixed(2)) : 0;
     const ratio = row.target_productivity > 0 ? parseFloat((productivity / row.target_productivity * 100).toFixed(1)) : 0;
     const costRatio = revenue > 0 ? parseFloat((laborCost / revenue * 100).toFixed(1)) : 0;
@@ -146,17 +150,17 @@ router.post('/', validateMonthly, (req, res) => {
     } = req.body;
 
     // Verify store
-    const store = db.prepare('SELECT id FROM stores WHERE id = ?').get(Number(store_id));
+    const store = req.db.prepare('SELECT id FROM stores WHERE id = ?').get(Number(store_id));
     if (!store) return res.status(400).json({ success: false, message: '門市不存在' });
 
     // Check if record exists
-    const existing = db.prepare(
+    const existing = req.db.prepare(
       'SELECT id FROM monthly_data WHERE store_id=? AND year=? AND month=?'
     ).get(Number(store_id), Number(year), Number(month));
 
     let rowId;
     if (existing) {
-      db.prepare(`
+      req.db.prepare(`
         UPDATE monthly_data
         SET estimated_hours=?, estimated_revenue=?, actual_hours=?, actual_revenue=?,
             submitted_by=?, notes=?, updated_at=CURRENT_TIMESTAMP
@@ -169,7 +173,7 @@ router.post('/', validateMonthly, (req, res) => {
       );
       rowId = existing.id;
     } else {
-      const result = db.prepare(`
+      const result = req.db.prepare(`
         INSERT INTO monthly_data
           (store_id, year, month, estimated_hours, estimated_revenue, actual_hours, actual_revenue, submitted_by, notes)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -182,7 +186,7 @@ router.post('/', validateMonthly, (req, res) => {
       rowId = result.lastInsertRowid;
     }
 
-    const row = db.prepare(`
+    const row = req.db.prepare(`
       SELECT md.*, s.name as store_name, s.target_productivity
       FROM monthly_data md JOIN stores s ON md.store_id = s.id
       WHERE md.id = ?
@@ -190,7 +194,7 @@ router.post('/', validateMonthly, (req, res) => {
 
     const hours = row.actual_hours || row.estimated_hours || 0;
     const revenue = row.actual_revenue || row.estimated_revenue || 0;
-    const weightedHrs = calculateWeightedHours(row.store_id, hours);
+    const weightedHrs = calculateWeightedHours(req.db, row.store_id, hours);
     const productivity = weightedHrs > 0 ? parseFloat((revenue / weightedHrs).toFixed(2)) : 0;
     const ratio = row.target_productivity > 0 ? parseFloat((productivity / row.target_productivity * 100).toFixed(1)) : 0;
 
@@ -213,7 +217,7 @@ router.post('/', validateMonthly, (req, res) => {
 router.put('/:id', (req, res) => {
   try {
     const id = Number(req.params.id);
-    const existing = db.prepare('SELECT * FROM monthly_data WHERE id = ?').get(id);
+    const existing = req.db.prepare('SELECT * FROM monthly_data WHERE id = ?').get(id);
     if (!existing) return res.status(404).json({ success: false, message: '資料不存在' });
 
     const fields = ['estimated_hours', 'estimated_revenue', 'actual_hours', 'actual_revenue', 'submitted_by', 'notes'];
@@ -222,7 +226,7 @@ router.put('/:id', (req, res) => {
       updates[f] = req.body[f] !== undefined ? req.body[f] : existing[f];
     }
 
-    db.prepare(`
+    req.db.prepare(`
       UPDATE monthly_data
       SET estimated_hours=?, estimated_revenue=?, actual_hours=?, actual_revenue=?,
           submitted_by=?, notes=?, updated_at=CURRENT_TIMESTAMP
@@ -233,7 +237,7 @@ router.put('/:id', (req, res) => {
       updates.submitted_by, updates.notes, id
     );
 
-    const row = db.prepare(`
+    const row = req.db.prepare(`
       SELECT md.*, s.name as store_name, s.target_productivity
       FROM monthly_data md JOIN stores s ON md.store_id = s.id WHERE md.id = ?
     `).get(id);

@@ -3,10 +3,9 @@
  */
 const express = require('express');
 const router = express.Router();
-const db = require('../database');
 const { getEmployeeWeight } = require('../middleware/validator');
 
-function calculateWeightedHours(storeId, totalHours) {
+function calculateWeightedHours(db, storeId, totalHours) {
   const employees = db.prepare(
     'SELECT seniority_years, position FROM employees WHERE store_id = ? AND active = 1'
   ).all(storeId);
@@ -15,7 +14,7 @@ function calculateWeightedHours(storeId, totalHours) {
   return parseFloat((totalHours * (totalWeight / employees.length)).toFixed(2));
 }
 
-function calculateLaborCost(storeId, totalHours) {
+function calculateLaborCost(db, storeId, totalHours) {
   const employees = db.prepare(
     'SELECT hourly_rate FROM employees WHERE store_id = ? AND active = 1'
   ).all(storeId);
@@ -24,11 +23,11 @@ function calculateLaborCost(storeId, totalHours) {
   return parseFloat((totalHours * avgRate).toFixed(2));
 }
 
-function enrichRow(row) {
+function enrichRow(db, row) {
   const hours = row.actual_hours || row.estimated_hours || 0;
   const revenue = row.actual_revenue || row.estimated_revenue || 0;
-  const weightedHrs = calculateWeightedHours(row.store_id, hours);
-  const laborCost = calculateLaborCost(row.store_id, hours);
+  const weightedHrs = calculateWeightedHours(db, row.store_id, hours);
+  const laborCost = calculateLaborCost(db, row.store_id, hours);
   const productivity = weightedHrs > 0 ? parseFloat((revenue / weightedHrs).toFixed(2)) : 0;
   const ratio = row.target_productivity > 0
     ? parseFloat((productivity / row.target_productivity * 100).toFixed(1))
@@ -71,7 +70,7 @@ router.get('/monthly', (req, res) => {
 
     query += ' ORDER BY s.id, md.year DESC, md.month DESC';
 
-    let rows = db.prepare(query).all(...params);
+    let rows = req.db.prepare(query).all(...params);
 
     // Limit per store
     if (!store_id) {
@@ -87,7 +86,7 @@ router.get('/monthly', (req, res) => {
       rows = rows.slice(0, Number(months));
     }
 
-    const enriched = rows.map(enrichRow).sort((a, b) => {
+    const enriched = rows.map(row => enrichRow(req.db, row)).sort((a, b) => {
       if (a.store_id !== b.store_id) return a.store_id - b.store_id;
       if (a.year !== b.year) return a.year - b.year;
       return a.month - b.month;

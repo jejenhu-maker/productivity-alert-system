@@ -23,7 +23,6 @@ async function startServer() {
     app.locals.db = db;
 
   const PORT = process.env.PORT || 3000;
-  const BASE_PATH = process.env.BASE_PATH || '';
 
   // =============================================
   // Middleware
@@ -33,12 +32,14 @@ async function startServer() {
   app.use(bodyParser.json());
   app.use(bodyParser.urlencoded({ extended: true }));
 
-  // Serve static frontend files under base path
-  if (BASE_PATH) {
-    app.use(BASE_PATH, express.static(path.join(__dirname, '..', 'frontend')));
-  } else {
-    app.use(express.static(path.join(__dirname, '..', 'frontend')));
-  }
+  // Database middleware - make db available as req.db
+  app.use((req, res, next) => {
+    req.db = app.locals.db;
+    next();
+  });
+
+  // Serve static frontend files at root
+  app.use(express.static(path.join(__dirname, '..', 'frontend')));
 
   // =============================================
   // API Routes
@@ -49,36 +50,22 @@ async function startServer() {
   const dashboardRouter = require('./routes/dashboard');
   const reportsRouter   = require('./routes/reports');
 
-  const apiPrefix = BASE_PATH + '/api';
-  app.use(apiPrefix + '/employees', employeesRouter);
-  app.use(apiPrefix + '/stores',    storesRouter);
-  app.use(apiPrefix + '/monthly',   monthlyRouter);
-  app.use(apiPrefix + '/dashboard', dashboardRouter);
-  app.use(apiPrefix + '/reports',   reportsRouter);
+  app.use('/api/employees', employeesRouter);
+  app.use('/api/stores',    storesRouter);
+  app.use('/api/monthly',   monthlyRouter);
+  app.use('/api/dashboard', dashboardRouter);
+  app.use('/api/reports',   reportsRouter);
 
   // =============================================
   // Health check
   // =============================================
-  app.get(apiPrefix + '/health', (req, res) => {
+  app.get('/api/health', (req, res) => {
     res.json({
       success: true,
       message: '瑞昌藥局 人時生產力預警系統 正常運作中',
       timestamp: new Date().toISOString(),
       version: '1.0.0',
-      basePath: BASE_PATH,
     });
-  });
-
-  // =============================================
-  // Catch-all: serve frontend for any unknown route
-  // =============================================
-  if (BASE_PATH) {
-    app.get(BASE_PATH + '*', (req, res) => {
-      res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html'));
-    });
-  }
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html'));
   });
 
   // =============================================
@@ -102,7 +89,6 @@ async function startServer() {
       console.log('  Ruichang Pharmacy Productivity Alert System');
       console.log('================================================');
       console.log(`  Server running at: http://localhost:${PORT}`);
-      console.log(`  Base path: ${BASE_PATH || '/'}`);
       console.log(`  Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log('================================================');
     });

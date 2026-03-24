@@ -3,10 +3,9 @@
  */
 const express = require('express');
 const router = express.Router();
-const db = require('../database');
 const { getEmployeeWeight } = require('../middleware/validator');
 
-function calculateWeightedHours(storeId, totalHours) {
+function calculateWeightedHours(db, storeId, totalHours) {
   const employees = db.prepare(
     'SELECT seniority_years, position FROM employees WHERE store_id = ? AND active = 1'
   ).all(storeId);
@@ -15,7 +14,7 @@ function calculateWeightedHours(storeId, totalHours) {
   return parseFloat((totalHours * (totalWeight / employees.length)).toFixed(2));
 }
 
-function calculateLaborCost(storeId, totalHours) {
+function calculateLaborCost(db, storeId, totalHours) {
   const employees = db.prepare(
     'SELECT hourly_rate FROM employees WHERE store_id = ? AND active = 1'
   ).all(storeId);
@@ -30,7 +29,7 @@ function getAlertColor(ratio) {
   return 'red';
 }
 
-function buildStoreStatus(store, monthlyRow) {
+function buildStoreStatus(db, store, monthlyRow) {
   if (!monthlyRow) {
     return {
       store_id: store.id,
@@ -56,8 +55,8 @@ function buildStoreStatus(store, monthlyRow) {
 
   const hours = monthlyRow.actual_hours || monthlyRow.estimated_hours || 0;
   const revenue = monthlyRow.actual_revenue || monthlyRow.estimated_revenue || 0;
-  const weightedHrs = calculateWeightedHours(store.id, hours);
-  const laborCost = calculateLaborCost(store.id, hours);
+  const weightedHrs = calculateWeightedHours(db, store.id, hours);
+  const laborCost = calculateLaborCost(db, store.id, hours);
   const productivity = weightedHrs > 0 ? parseFloat((revenue / weightedHrs).toFixed(2)) : 0;
   const ratio = store.target_productivity > 0
     ? parseFloat((productivity / store.target_productivity * 100).toFixed(1))
@@ -97,7 +96,7 @@ router.get('/', (req, res) => {
     year = year ? Number(year) : now.getFullYear();
     month = month ? Number(month) : now.getMonth() + 1;
 
-    const stores = db.prepare(`
+    const stores = req.db.prepare(`
       SELECT s.*, COUNT(DISTINCT CASE WHEN e.active=1 THEN e.id END) as employee_count
       FROM stores s
       LEFT JOIN employees e ON e.store_id = s.id
@@ -105,13 +104,13 @@ router.get('/', (req, res) => {
       GROUP BY s.id ORDER BY s.id
     `).all();
 
-    const monthlyRows = db.prepare(`
+    const monthlyRows = req.db.prepare(`
       SELECT * FROM monthly_data WHERE year = ? AND month = ?
     `).all(year, month);
     const monthlyByStore = {};
     for (const row of monthlyRows) monthlyByStore[row.store_id] = row;
 
-    const storeStatuses = stores.map(store => buildStoreStatus(store, monthlyByStore[store.id]));
+    const storeStatuses = stores.map(store => buildStoreStatus(req.db, store, monthlyByStore[store.id]));
 
     const summary = {
       total: storeStatuses.length,
@@ -158,7 +157,7 @@ router.get('/:storeId', (req, res) => {
     year = year ? Number(year) : now.getFullYear();
     month = month ? Number(month) : now.getMonth() + 1;
 
-    const store = db.prepare(`
+    const store = req.db.prepare(`
       SELECT s.*, COUNT(DISTINCT CASE WHEN e.active=1 THEN e.id END) as employee_count
       FROM stores s
       LEFT JOIN employees e ON e.store_id = s.id
@@ -168,14 +167,14 @@ router.get('/:storeId', (req, res) => {
 
     if (!store) return res.status(404).json({ success: false, message: '門市不存在' });
 
-    const monthlyRow = db.prepare(
+    const monthlyRow = req.db.prepare(
       'SELECT * FROM monthly_data WHERE store_id=? AND year=? AND month=?'
     ).get(storeId, year, month);
 
-    const currentStatus = buildStoreStatus(store, monthlyRow);
+    const currentStatus = buildStoreStatus(req.db, store, monthlyRow);
 
     // Get employees with weights
-    const employees = db.prepare(`
+    const employees = req.db.prepare(`
       SELECT * FROM employees WHERE store_id = ? AND active = 1
       ORDER BY position, name
     `).all(storeId);
@@ -186,7 +185,7 @@ router.get('/:storeId', (req, res) => {
     }));
 
     // Get last 6 months trend
-    const trend = db.prepare(`
+    const trend = req.db.prepare(`
       SELECT md.*, s.target_productivity
       FROM monthly_data md
       JOIN stores s ON md.store_id = s.id
@@ -196,7 +195,7 @@ router.get('/:storeId', (req, res) => {
     `).all(storeId).map(row => {
       const h = row.actual_hours || row.estimated_hours || 0;
       const r = row.actual_revenue || row.estimated_revenue || 0;
-      const wh = calculateWeightedHours(storeId, h);
+      const wh = calculateWeightedHours(req.db, storeId, h);
       const prod = wh > 0 ? parseFloat((r / wh).toFixed(2)) : 0;
       const ratio = row.target_productivity > 0 ? parseFloat((prod / row.target_productivity * 100).toFixed(1)) : 0;
       return {

@@ -3,13 +3,12 @@
  */
 const express = require('express');
 const router = express.Router();
-const db = require('../database');
 const { validateStore } = require('../middleware/validator');
 
 // GET /api/stores - List all stores
 router.get('/', (req, res) => {
   try {
-    const stores = db.prepare(`
+    const stores = req.db.prepare(`
       SELECT s.*,
              COUNT(DISTINCT CASE WHEN e.active=1 THEN e.id END) as employee_count
       FROM stores s
@@ -27,7 +26,7 @@ router.get('/', (req, res) => {
 // GET /api/stores/:id - Single store
 router.get('/:id', (req, res) => {
   try {
-    const store = db.prepare(`
+    const store = req.db.prepare(`
       SELECT s.*,
              COUNT(DISTINCT CASE WHEN e.active=1 THEN e.id END) as employee_count
       FROM stores s
@@ -38,7 +37,7 @@ router.get('/:id', (req, res) => {
 
     if (!store) return res.status(404).json({ success: false, message: '門市不存在' });
 
-    const employees = db.prepare(`
+    const employees = req.db.prepare(`
       SELECT * FROM employees WHERE store_id = ? AND active = 1
       ORDER BY position, name
     `).all(Number(req.params.id));
@@ -56,10 +55,10 @@ router.post('/', validateStore, (req, res) => {
     const { name, code, target_productivity, status } = req.body;
 
     // Check unique code
-    const existing = db.prepare('SELECT id FROM stores WHERE code = ?').get(String(code).trim().toUpperCase());
+    const existing = req.db.prepare('SELECT id FROM stores WHERE code = ?').get(String(code).trim().toUpperCase());
     if (existing) return res.status(409).json({ success: false, message: '門市代碼已存在' });
 
-    const result = db.prepare(`
+    const result = req.db.prepare(`
       INSERT INTO stores (name, code, target_productivity, status)
       VALUES (?, ?, ?, ?)
     `).run(
@@ -69,7 +68,7 @@ router.post('/', validateStore, (req, res) => {
       ['active', 'inactive'].includes(status) ? status : 'active'
     );
 
-    const newStore = db.prepare('SELECT * FROM stores WHERE id = ?').get(result.lastInsertRowid);
+    const newStore = req.db.prepare('SELECT * FROM stores WHERE id = ?').get(result.lastInsertRowid);
     res.status(201).json({ success: true, message: '門市已新增', data: newStore });
   } catch (err) {
     console.error('POST /stores error:', err);
@@ -81,7 +80,7 @@ router.post('/', validateStore, (req, res) => {
 router.put('/:id', (req, res) => {
   try {
     const id = Number(req.params.id);
-    const existing = db.prepare('SELECT * FROM stores WHERE id = ?').get(id);
+    const existing = req.db.prepare('SELECT * FROM stores WHERE id = ?').get(id);
     if (!existing) return res.status(404).json({ success: false, message: '門市不存在' });
 
     const { name, code, target_productivity, status } = req.body;
@@ -93,16 +92,16 @@ router.put('/:id', (req, res) => {
 
     // Check code uniqueness if changed
     if (updatedCode !== existing.code) {
-      const codeExists = db.prepare('SELECT id FROM stores WHERE code = ? AND id != ?').get(updatedCode, id);
+      const codeExists = req.db.prepare('SELECT id FROM stores WHERE code = ? AND id != ?').get(updatedCode, id);
       if (codeExists) return res.status(409).json({ success: false, message: '門市代碼已存在' });
     }
 
-    db.prepare(`
+    req.db.prepare(`
       UPDATE stores SET name=?, code=?, target_productivity=?, status=?, updated_at=CURRENT_TIMESTAMP
       WHERE id=?
     `).run(updatedName, updatedCode, updatedTarget, updatedStatus, id);
 
-    const updated = db.prepare('SELECT * FROM stores WHERE id = ?').get(id);
+    const updated = req.db.prepare('SELECT * FROM stores WHERE id = ?').get(id);
     res.json({ success: true, message: '門市資料已更新', data: updated });
   } catch (err) {
     console.error('PUT /stores/:id error:', err);
@@ -114,10 +113,10 @@ router.put('/:id', (req, res) => {
 router.delete('/:id', (req, res) => {
   try {
     const id = Number(req.params.id);
-    const existing = db.prepare('SELECT * FROM stores WHERE id = ?').get(id);
+    const existing = req.db.prepare('SELECT * FROM stores WHERE id = ?').get(id);
     if (!existing) return res.status(404).json({ success: false, message: '門市不存在' });
 
-    db.prepare("UPDATE stores SET status='inactive', updated_at=CURRENT_TIMESTAMP WHERE id=?").run(id);
+    req.db.prepare("UPDATE stores SET status='inactive', updated_at=CURRENT_TIMESTAMP WHERE id=?").run(id);
     res.json({ success: true, message: '門市已停用' });
   } catch (err) {
     console.error('DELETE /stores/:id error:', err);

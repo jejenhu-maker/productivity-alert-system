@@ -3,15 +3,8 @@
  * Core App Utilities
  */
 
-// Auto-detect base path from current URL
-const getBasePath = () => {
-  const path = window.location.pathname;
-  if (path.startsWith('/productivity')) {
-    return '/productivity/api';
-  }
-  return '/api';
-};
-const API_BASE = getBasePath();
+// API base path - always root since we use subdomain
+const API_BASE = '/api';
 
 // =============================================
 // API Helper

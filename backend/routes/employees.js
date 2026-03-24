@@ -3,7 +3,6 @@
  */
 const express = require('express');
 const router = express.Router();
-const db = require('../database');
 const { validateEmployee, getEmployeeWeight, getSeniorityWeight, getPositionWeight } = require('../middleware/validator');
 
 // GET /api/employees - List all employees (optionally filter by store_id)
@@ -30,7 +29,7 @@ router.get('/', (req, res) => {
     }
     query += ' ORDER BY s.name, e.position, e.name';
 
-    const employees = db.prepare(query).all(...params);
+    const employees = req.db.prepare(query).all(...params);
 
     // Add computed weight
     const enriched = employees.map(emp => ({
@@ -50,7 +49,7 @@ router.get('/', (req, res) => {
 // GET /api/employees/:id - Get single employee
 router.get('/:id', (req, res) => {
   try {
-    const emp = db.prepare(`
+    const emp = req.db.prepare(`
       SELECT e.*, s.name as store_name, s.code as store_code
       FROM employees e
       JOIN stores s ON e.store_id = s.id
@@ -80,10 +79,10 @@ router.post('/', validateEmployee, (req, res) => {
     const { store_id, name, position, hire_date, seniority_years, hourly_rate, active } = req.body;
 
     // Verify store exists
-    const store = db.prepare('SELECT id FROM stores WHERE id = ?').get(Number(store_id));
+    const store = req.db.prepare('SELECT id FROM stores WHERE id = ?').get(Number(store_id));
     if (!store) return res.status(400).json({ success: false, message: '指定門市不存在' });
 
-    const result = db.prepare(`
+    const result = req.db.prepare(`
       INSERT INTO employees (store_id, name, position, hire_date, seniority_years, hourly_rate, active)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(
@@ -96,7 +95,7 @@ router.post('/', validateEmployee, (req, res) => {
       active !== undefined ? Number(active) : 1
     );
 
-    const newEmp = db.prepare(`
+    const newEmp = req.db.prepare(`
       SELECT e.*, s.name as store_name FROM employees e
       JOIN stores s ON e.store_id = s.id WHERE e.id = ?
     `).get(result.lastInsertRowid);
@@ -122,7 +121,7 @@ router.post('/', validateEmployee, (req, res) => {
 router.put('/:id', (req, res) => {
   try {
     const id = Number(req.params.id);
-    const existing = db.prepare('SELECT * FROM employees WHERE id = ?').get(id);
+    const existing = req.db.prepare('SELECT * FROM employees WHERE id = ?').get(id);
     if (!existing) return res.status(404).json({ success: false, message: '員工不存在' });
 
     const { store_id, name, position, hire_date, seniority_years, hourly_rate, active } = req.body;
@@ -140,7 +139,7 @@ router.put('/:id', (req, res) => {
       return res.status(400).json({ success: false, message: '無效的職位' });
     }
 
-    db.prepare(`
+    req.db.prepare(`
       UPDATE employees
       SET store_id=?, name=?, position=?, hire_date=?, seniority_years=?,
           hourly_rate=?, active=?, updated_at=CURRENT_TIMESTAMP
@@ -148,7 +147,7 @@ router.put('/:id', (req, res) => {
     `).run(updatedStoreId, updatedName, updatedPosition, updatedHireDate,
            updatedSeniority, updatedHourlyRate, updatedActive, id);
 
-    const updated = db.prepare(`
+    const updated = req.db.prepare(`
       SELECT e.*, s.name as store_name FROM employees e
       JOIN stores s ON e.store_id = s.id WHERE e.id = ?
     `).get(id);
@@ -171,11 +170,11 @@ router.put('/:id', (req, res) => {
 router.delete('/:id', (req, res) => {
   try {
     const id = Number(req.params.id);
-    const existing = db.prepare('SELECT * FROM employees WHERE id = ?').get(id);
+    const existing = req.db.prepare('SELECT * FROM employees WHERE id = ?').get(id);
     if (!existing) return res.status(404).json({ success: false, message: '員工不存在' });
 
     // Soft delete: set active = 0
-    db.prepare('UPDATE employees SET active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(id);
+    req.db.prepare('UPDATE employees SET active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(id);
 
     res.json({ success: true, message: '員工已停用' });
   } catch (err) {
