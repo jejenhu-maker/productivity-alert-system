@@ -1,0 +1,3 @@
+[submodule "governance"]
+	path = governance
+	url = https://github.com/jejenhu-maker/richpharmacy-governance.git
