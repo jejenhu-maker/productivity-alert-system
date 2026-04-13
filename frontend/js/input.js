@@ -51,6 +51,7 @@ function bindFormEvents() {
 
   // Live preview
   ['inputEstHours', 'inputEstRevenue', 'inputActHours', 'inputActRevenue',
+   'inputEstGrossMargin', 'inputActGrossMargin',
    'inputYear', 'inputMonth', 'inputStoreId'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
@@ -80,6 +81,8 @@ async function onStoreChange() {
       document.getElementById('inputEstRevenue').value = existing.estimated_revenue || '';
       document.getElementById('inputActHours').value = existing.actual_hours || '';
       document.getElementById('inputActRevenue').value = existing.actual_revenue || '';
+      document.getElementById('inputEstGrossMargin').value = existing.estimated_gross_margin || '';
+      document.getElementById('inputActGrossMargin').value = existing.actual_gross_margin || '';
       document.getElementById('inputNotes').value = existing.notes || '';
       document.getElementById('inputSubmittedBy').value = existing.submitted_by || '';
       showToast('已載入現有資料，可直接修改', 'info');
@@ -110,6 +113,7 @@ function clearStoreInfo() {
 
 function clearFormFields() {
   ['inputEstHours', 'inputEstRevenue', 'inputActHours', 'inputActRevenue',
+   'inputEstGrossMargin', 'inputActGrossMargin',
    'inputNotes', 'inputSubmittedBy'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
@@ -151,7 +155,7 @@ async function loadRecentHistory(storeId) {
     const rows = result.data.slice(0, 4);
 
     if (rows.length === 0) {
-      el.innerHTML = `<tr><td colspan="7" class="text-center text-muted">暫無歷史資料</td></tr>`;
+      el.innerHTML = `<tr><td colspan="9" class="text-center text-muted">暫無歷史資料</td></tr>`;
       return;
     }
 
@@ -164,12 +168,14 @@ async function loadRecentHistory(storeId) {
           <td>${r.estimated_revenue ? 'NT$' + formatNumber(r.estimated_revenue) : '-'}</td>
           <td>${r.actual_hours ? formatNumber(r.actual_hours, 1) + 'hr' : '-'}</td>
           <td>${r.actual_revenue ? 'NT$' + formatNumber(r.actual_revenue) : '-'}</td>
+          <td>${r.estimated_gross_margin ? 'NT$' + formatNumber(r.estimated_gross_margin) : '-'}</td>
+          <td>${r.actual_gross_margin ? 'NT$' + formatNumber(r.actual_gross_margin) : '-'}</td>
           <td class="fw-600">${r.productivity > 0 ? formatNumber(r.productivity, 0) + ' NT$/hr' : '-'}</td>
           <td>${statusBadge(r.alert_status)}</td>
         </tr>`;
     }).join('');
   } catch (err) {
-    el.innerHTML = `<tr><td colspan="7" class="text-center text-muted">載入失敗</td></tr>`;
+    el.innerHTML = `<tr><td colspan="9" class="text-center text-muted">載入失敗</td></tr>`;
   }
 }
 
@@ -283,6 +289,8 @@ async function handleInputSubmit(e) {
     estimated_revenue: parseFloat(document.getElementById('inputEstRevenue')?.value) || null,
     actual_hours: parseFloat(document.getElementById('inputActHours')?.value) || null,
     actual_revenue: parseFloat(document.getElementById('inputActRevenue')?.value) || null,
+    estimated_gross_margin: parseFloat(document.getElementById('inputEstGrossMargin')?.value) || null,
+    actual_gross_margin: parseFloat(document.getElementById('inputActGrossMargin')?.value) || null,
     submitted_by: document.getElementById('inputSubmittedBy')?.value || null,
     notes: document.getElementById('inputNotes')?.value || null,
   };

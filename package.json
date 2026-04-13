@@ -10,11 +10,13 @@
     "init-db": "node backend/database.js"
   },
   "dependencies": {
-    "sql.js": "^1.11.0",
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
     "express": "^4.18.2",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "multer": "^2.1.1",
+    "sql.js": "^1.11.0",
+    "xlsx": "^0.18.5"
   },
   "engines": {
     "node": ">=16.0.0"

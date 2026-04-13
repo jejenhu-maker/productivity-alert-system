@@ -255,3 +255,49 @@ function showTableEmpty(msg = '暫無資料') {
   const tbody = document.getElementById('employeeTableBody');
   if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-muted">${msg}</td></tr>`;
 }
+
+// =============================================
+// Export / Import
+// =============================================
+function exportEmployees() {
+  window.location.href = `${API_BASE}/employees/export`;
+}
+
+async function importEmployees(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    showToast('匯入中...', 'info');
+    const res = await fetch(`${API_BASE}/employees/import`, {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      let msg = data.message;
+      if (data.errors && data.errors.length > 0) {
+        const errMsgs = data.errors.slice(0, 5).map(e =>
+          `第${e.row}行 ${e.name}: ${e.errors.join(', ')}`
+        ).join('\n');
+        msg += '\n\n錯誤明細:\n' + errMsgs;
+        if (data.errors.length > 5) msg += `\n...另有 ${data.errors.length - 5} 筆錯誤`;
+        showToast(`匯入完成，但有 ${data.errors.length} 筆錯誤`, 'warning', 6000);
+        alert(msg);
+      } else {
+        showToast(data.message, 'success');
+      }
+      await loadEmployees();
+    } else {
+      showToast(data.message || '匯入失敗', 'error');
+    }
+  } catch (err) {
+    showToast('匯入失敗: ' + err.message, 'error');
+  } finally {
+    input.value = ''; // reset file input
+  }
+}

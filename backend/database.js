@@ -138,6 +138,22 @@ function flattenParams(params) {
 }
 
 function initSchema(db) {
+  // Migration: add gross margin columns if missing
+  try {
+    const cols = db.prepare("PRAGMA table_info(monthly_data)").all();
+    const colNames = cols.map(c => c.name);
+    if (!colNames.includes('estimated_gross_margin')) {
+      db._db.run('ALTER TABLE monthly_data ADD COLUMN estimated_gross_margin REAL');
+      console.log('Migration: added estimated_gross_margin column');
+    }
+    if (!colNames.includes('actual_gross_margin')) {
+      db._db.run('ALTER TABLE monthly_data ADD COLUMN actual_gross_margin REAL');
+      console.log('Migration: added actual_gross_margin column');
+    }
+  } catch (e) {
+    // Table might not exist yet, will be created below
+  }
+
   db._db.run(`
     CREATE TABLE IF NOT EXISTS stores (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -169,6 +185,8 @@ function initSchema(db) {
       estimated_revenue REAL,
       actual_hours REAL,
       actual_revenue REAL,
+      estimated_gross_margin REAL,
+      actual_gross_margin REAL,
       submitted_by TEXT,
       notes TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

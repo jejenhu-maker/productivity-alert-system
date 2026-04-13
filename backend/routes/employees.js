@@ -3,7 +3,12 @@
  */
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const XLSX = require('xlsx');
 const { validateEmployee, getEmployeeWeight, getSeniorityWeight, getPositionWeight } = require('../middleware/validator');
+
+// Multer setup for file upload (memory storage)
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 // GET /api/employees - List all employees (optionally filter by store_id)
 router.get('/', (req, res) => {
@@ -43,6 +48,54 @@ router.get('/', (req, res) => {
   } catch (err) {
     console.error('GET /employees error:', err);
     res.status(500).json({ success: false, message: '伺服器錯誤', error: err.message });
+  }
+});
+
+// =============================================
+// EXPORT: GET /api/employees/export
+// (Must be before /:id to avoid route conflict)
+// =============================================
+router.get('/export', (req, res) => {
+  try {
+    const employees = req.db.prepare(`
+      SELECT e.id, e.name, s.name as store_name, s.code as store_code, e.position,
+             e.hire_date, e.seniority_years, e.hourly_rate, e.active
+      FROM employees e
+      JOIN stores s ON e.store_id = s.id
+      ORDER BY s.name, e.position, e.name
+    `).all();
+
+    const exportData = employees.map(emp => ({
+      '員工ID': emp.id,
+      '員工姓名': emp.name,
+      '門市名稱': emp.store_name,
+      '門市代碼': emp.store_code,
+      '職位': emp.position,
+      '到職日期': emp.hire_date,
+      '年資(年)': emp.seniority_years,
+      '時薪(NT$)': emp.hourly_rate,
+      '狀態': emp.active === 1 ? '啟用' : '停用',
+      '年資加權': getSeniorityWeight(emp.seniority_years),
+      '職位加權': getPositionWeight(emp.position),
+      '總加權係數': parseFloat(getEmployeeWeight(emp.seniority_years, emp.position).toFixed(3)),
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    ws['!cols'] = [
+      { wch: 8 }, { wch: 12 }, { wch: 10 }, { wch: 8 }, { wch: 8 },
+      { wch: 12 }, { wch: 8 }, { wch: 10 }, { wch: 6 },
+      { wch: 8 }, { wch: 8 }, { wch: 10 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '員工資料');
+
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=employees_${new Date().toISOString().slice(0,10)}.xlsx`);
+    res.send(Buffer.from(buf));
+  } catch (err) {
+    console.error('GET /employees/export error:', err);
+    res.status(500).json({ success: false, message: '匯出失敗', error: err.message });
   }
 });
 
@@ -180,6 +233,116 @@ router.delete('/:id', (req, res) => {
   } catch (err) {
     console.error('DELETE /employees/:id error:', err);
     res.status(500).json({ success: false, message: '伺服器錯誤', error: err.message });
+  }
+});
+
+// =============================================
+// IMPORT: POST /api/employees/import
+// =============================================
+router.post('/import', upload.single('file'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: '請上傳檔案' });
+    }
+
+    const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws);
+
+    if (rows.length === 0) {
+      return res.status(400).json({ success: false, message: '檔案中無資料' });
+    }
+
+    // Build store code → id map
+    const stores = req.db.prepare('SELECT id, code, name FROM stores').all();
+    const storeByCode = {};
+    const storeByName = {};
+    stores.forEach(s => {
+      storeByCode[s.code] = s.id;
+      storeByName[s.name] = s.id;
+    });
+
+    const validPositions = ['店長', '副店長', '藥師', '正職', '兼職'];
+    const errors = [];
+    let updated = 0;
+    let created = 0;
+    let skipped = 0;
+
+    rows.forEach((row, idx) => {
+      const rowNum = idx + 2; // Excel row (header is row 1)
+      const rowErrors = [];
+
+      // Parse fields (support both Chinese and English headers)
+      const empId = row['員工ID'] || row['id'];
+      const name = (row['員工姓名'] || row['name'] || '').toString().trim();
+      const storeCode = (row['門市代碼'] || row['store_code'] || '').toString().trim();
+      const storeName = (row['門市名稱'] || row['store_name'] || '').toString().trim();
+      const position = (row['職位'] || row['position'] || '').toString().trim();
+      const hireDate = (row['到職日期'] || row['hire_date'] || '').toString().trim();
+      const seniority = parseFloat(row['年資(年)'] || row['seniority_years']);
+      const hourlyRate = parseFloat(row['時薪(NT$)'] || row['hourly_rate']);
+      const activeStr = (row['狀態'] || row['active'] || '啟用').toString().trim();
+      const active = (activeStr === '停用' || activeStr === '0') ? 0 : 1;
+
+      // Validate
+      if (!name) rowErrors.push('姓名為空');
+
+      // Resolve store
+      let storeId = storeByCode[storeCode] || storeByName[storeName];
+      if (!storeId) rowErrors.push(`找不到門市: ${storeCode || storeName || '(空)'}`);
+
+      if (position && !validPositions.includes(position)) {
+        rowErrors.push(`無效職位: ${position}`);
+      }
+      if (!position) rowErrors.push('職位為空');
+
+      if (hireDate && !/^\d{4}-\d{2}-\d{2}$/.test(hireDate)) {
+        rowErrors.push(`到職日期格式錯誤: ${hireDate}`);
+      }
+      if (!hireDate) rowErrors.push('到職日期為空');
+
+      if (isNaN(seniority) || seniority < 0) rowErrors.push('年資無效');
+      if (isNaN(hourlyRate) || hourlyRate <= 0) rowErrors.push('時薪無效');
+
+      if (rowErrors.length > 0) {
+        errors.push({ row: rowNum, name: name || '(空)', errors: rowErrors });
+        skipped++;
+        return;
+      }
+
+      // Upsert
+      if (empId) {
+        // Try update existing
+        const existing = req.db.prepare('SELECT id FROM employees WHERE id = ?').get(Number(empId));
+        if (existing) {
+          req.db.prepare(`
+            UPDATE employees
+            SET store_id=?, name=?, position=?, hire_date=?, seniority_years=?,
+                hourly_rate=?, active=?, updated_at=CURRENT_TIMESTAMP
+            WHERE id=?
+          `).run(storeId, name, position, hireDate, seniority, hourlyRate, active, Number(empId));
+          updated++;
+          return;
+        }
+      }
+
+      // Create new
+      req.db.prepare(`
+        INSERT INTO employees (store_id, name, position, hire_date, seniority_years, hourly_rate, active)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(storeId, name, position, hireDate, seniority, hourlyRate, active);
+      created++;
+    });
+
+    res.json({
+      success: true,
+      message: `匯入完成: 新增 ${created} 筆、更新 ${updated} 筆、跳過 ${skipped} 筆`,
+      summary: { total: rows.length, created, updated, skipped },
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (err) {
+    console.error('POST /employees/import error:', err);
+    res.status(500).json({ success: false, message: '匯入失敗: ' + err.message });
   }
 });
 

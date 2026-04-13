@@ -113,7 +113,7 @@ function validateMonthly(req, res, next) {
     errors.push('月份必須介於 1 至 12 之間');
   }
 
-  const numFields = ['estimated_hours', 'estimated_revenue', 'actual_hours', 'actual_revenue'];
+  const numFields = ['estimated_hours', 'estimated_revenue', 'actual_hours', 'actual_revenue', 'estimated_gross_margin', 'actual_gross_margin'];
   for (const field of numFields) {
     if (req.body[field] !== undefined && req.body[field] !== null && req.body[field] !== '') {
       const val = Number(req.body[field]);

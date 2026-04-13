@@ -146,6 +146,7 @@ router.post('/', validateMonthly, (req, res) => {
       store_id, year, month,
       estimated_hours, estimated_revenue,
       actual_hours, actual_revenue,
+      estimated_gross_margin, actual_gross_margin,
       submitted_by, notes
     } = req.body;
 
@@ -163,11 +164,13 @@ router.post('/', validateMonthly, (req, res) => {
       req.db.prepare(`
         UPDATE monthly_data
         SET estimated_hours=?, estimated_revenue=?, actual_hours=?, actual_revenue=?,
+            estimated_gross_margin=?, actual_gross_margin=?,
             submitted_by=?, notes=?, updated_at=CURRENT_TIMESTAMP
         WHERE store_id=? AND year=? AND month=?
       `).run(
         estimated_hours || null, estimated_revenue || null,
         actual_hours || null, actual_revenue || null,
+        estimated_gross_margin || null, actual_gross_margin || null,
         submitted_by || null, notes || null,
         Number(store_id), Number(year), Number(month)
       );
@@ -175,12 +178,13 @@ router.post('/', validateMonthly, (req, res) => {
     } else {
       const result = req.db.prepare(`
         INSERT INTO monthly_data
-          (store_id, year, month, estimated_hours, estimated_revenue, actual_hours, actual_revenue, submitted_by, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          (store_id, year, month, estimated_hours, estimated_revenue, actual_hours, actual_revenue, estimated_gross_margin, actual_gross_margin, submitted_by, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         Number(store_id), Number(year), Number(month),
         estimated_hours || null, estimated_revenue || null,
         actual_hours || null, actual_revenue || null,
+        estimated_gross_margin || null, actual_gross_margin || null,
         submitted_by || null, notes || null
       );
       rowId = result.lastInsertRowid;
@@ -220,7 +224,7 @@ router.put('/:id', (req, res) => {
     const existing = req.db.prepare('SELECT * FROM monthly_data WHERE id = ?').get(id);
     if (!existing) return res.status(404).json({ success: false, message: '資料不存在' });
 
-    const fields = ['estimated_hours', 'estimated_revenue', 'actual_hours', 'actual_revenue', 'submitted_by', 'notes'];
+    const fields = ['estimated_hours', 'estimated_revenue', 'actual_hours', 'actual_revenue', 'estimated_gross_margin', 'actual_gross_margin', 'submitted_by', 'notes'];
     const updates = {};
     for (const f of fields) {
       updates[f] = req.body[f] !== undefined ? req.body[f] : existing[f];
@@ -229,11 +233,13 @@ router.put('/:id', (req, res) => {
     req.db.prepare(`
       UPDATE monthly_data
       SET estimated_hours=?, estimated_revenue=?, actual_hours=?, actual_revenue=?,
+          estimated_gross_margin=?, actual_gross_margin=?,
           submitted_by=?, notes=?, updated_at=CURRENT_TIMESTAMP
       WHERE id=?
     `).run(
       updates.estimated_hours, updates.estimated_revenue,
       updates.actual_hours, updates.actual_revenue,
+      updates.estimated_gross_margin, updates.actual_gross_margin,
       updates.submitted_by, updates.notes, id
     );
 

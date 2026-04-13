@@ -36,6 +36,13 @@
         <i class="bi bi-people text-primary"></i> 員工管理
       </div>
       <div class="page-header-actions">
+        <button class="btn btn-outline btn-sm" onclick="exportEmployees()">
+          <i class="bi bi-download"></i> 匯出 Excel
+        </button>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('importFile').click()">
+          <i class="bi bi-upload"></i> 匯入 Excel
+        </button>
+        <input type="file" id="importFile" accept=".xlsx,.csv" style="display:none" onchange="importEmployees(this)">
         <button class="btn btn-primary btn-sm" onclick="openAddModal()">
           <i class="bi bi-person-plus"></i> 新增員工
         </button>

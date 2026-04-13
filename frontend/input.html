@@ -103,6 +103,25 @@
                 </div>
               </div>
 
+              <div class="form-section-title" style="font-size:0.82rem;margin-bottom:0.75rem;">
+                <i class="bi bi-cash-stack text-info"></i> 毛利資料
+              </div>
+
+              <div class="form-grid mb-3">
+                <div class="form-group">
+                  <label>預估毛利額 (NT$)</label>
+                  <input type="number" id="inputEstGrossMargin" class="form-control"
+                         min="0" step="1000" placeholder="當月預估毛利額">
+                  <div class="text-muted fs-xs mt-1">當月預估達成的毛利金額</div>
+                </div>
+                <div class="form-group">
+                  <label>實際毛利額 (NT$)</label>
+                  <input type="number" id="inputActGrossMargin" class="form-control"
+                         min="0" step="1000" placeholder="當月實際毛利額">
+                  <div class="text-muted fs-xs mt-1">當月實際達成的毛利金額</div>
+                </div>
+              </div>
+
               <div class="form-grid">
                 <div class="form-group">
                   <label>填表人</label>
@@ -140,12 +159,14 @@
                     <th>預估營收</th>
                     <th>實際工時</th>
                     <th>實際營收</th>
+                    <th>預估毛利</th>
+                    <th>實際毛利</th>
                     <th>生產力</th>
                     <th>狀態</th>
                   </tr>
                 </thead>
                 <tbody id="recentHistory">
-                  <tr><td colspan="7" class="text-center text-muted py-3">請先選擇門市</td></tr>
+                  <tr><td colspan="9" class="text-center text-muted py-3">請先選擇門市</td></tr>
                 </tbody>
               </table>
             </div>
