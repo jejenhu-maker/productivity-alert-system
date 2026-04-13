@@ -24,7 +24,7 @@ function getPositionWeight(position) {
     '副店長': 1.15,
     '藥師副店長': 1.2,
     '藥師': 1.2,
-    '正職': 1.0,
+    '門市人員': 1.0,
     '兼職': 0.85,
   };
   return weights[position] || 1.0;
@@ -60,8 +60,8 @@ function validateEmployee(req, res, next) {
 
   if (!name || String(name).trim() === '') errors.push('員工姓名不可為空');
   if (!store_id || isNaN(Number(store_id))) errors.push('門市ID必須為數字');
-  if (!['店長', '副店長', '藥師副店長', '藥師', '正職', '兼職'].includes(position)) {
-    errors.push('職位必須為：店長、副店長、藥師副店長、藥師、正職、兼職之一');
+  if (!['店長', '副店長', '藥師副店長', '藥師', '門市人員', '兼職'].includes(position)) {
+    errors.push('職位必須為：店長、副店長、藥師副店長、藥師、門市人員、兼職之一');
   }
   if (!hire_date || !/^\d{4}-\d{2}-\d{2}$/.test(hire_date)) {
     errors.push('到職日期格式必須為 YYYY-MM-DD');

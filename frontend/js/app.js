@@ -128,7 +128,7 @@ const POSITION_CLS = {
   '副店長': 'manager',
   '藥師副店長': 'pharmacist',
   '藥師': 'pharmacist',
-  '正職': 'fulltime',
+  '門市人員': 'fulltime',
   '兼職': 'parttime',
 };
 
