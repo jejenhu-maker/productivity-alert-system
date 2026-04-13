@@ -238,11 +238,21 @@ router.delete('/:id', (req, res) => {
 
 // =============================================
 // IMPORT: POST /api/employees/import
+// mode=replace → 先清空所有員工再匯入
+// mode=merge (default) → 依員工ID更新或新增
 // =============================================
 router.post('/import', upload.single('file'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: '請上傳檔案' });
+    }
+
+    const mode = req.body.mode || req.query.mode || 'merge';
+
+    // Replace mode: hard delete all employees first
+    if (mode === 'replace') {
+      req.db.prepare('DELETE FROM employees').run();
+      console.log('Import replace mode: all employees deleted');
     }
 
     const wb = XLSX.read(req.file.buffer, { type: 'buffer' });

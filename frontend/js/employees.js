@@ -259,6 +259,66 @@ function showTableEmpty(msg = '暫無資料') {
 // =============================================
 // Export / Import
 // =============================================
+function showImportModeDialog() {
+  return new Promise((resolve) => {
+    let modal = document.getElementById('importModeModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'importModeModal';
+      modal.className = 'modal fade';
+      modal.tabIndex = -1;
+      modal.innerHTML = `
+        <div class="modal-dialog modal-sm">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">選擇匯入模式</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <p class="mb-3" style="font-size:0.88rem;">請選擇匯入方式：</p>
+              <div class="d-grid gap-2">
+                <button class="btn btn-primary" id="importModeMerge">
+                  <i class="bi bi-arrow-left-right"></i> 合併更新
+                  <div style="font-size:0.75rem;font-weight:normal;opacity:0.8;">保留現有資料，依員工ID更新或新增</div>
+                </button>
+                <button class="btn btn-danger" id="importModeReplace">
+                  <i class="bi bi-arrow-repeat"></i> 清空重新匯入
+                  <div style="font-size:0.75rem;font-weight:normal;opacity:0.8;">刪除所有現有員工，用檔案內容取代</div>
+                </button>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline btn-sm" data-bs-dismiss="modal">取消</button>
+            </div>
+          </div>
+        </div>`;
+      document.body.appendChild(modal);
+    }
+
+    const bsModal = new bootstrap.Modal(modal);
+    const mergeBtn = document.getElementById('importModeMerge');
+    const replaceBtn = document.getElementById('importModeReplace');
+
+    function cleanup() {
+      mergeBtn.removeEventListener('click', onMerge);
+      replaceBtn.removeEventListener('click', onReplace);
+      modal.removeEventListener('hidden.bs.modal', onHidden);
+    }
+    function onMerge() { cleanup(); bsModal.hide(); resolve('merge'); }
+    function onReplace() {
+      if (confirm('❗ 確定要刪除所有現有員工再匯入嗎？\n此操作無法復原！')) {
+        cleanup(); bsModal.hide(); resolve('replace');
+      }
+    }
+    function onHidden() { cleanup(); resolve(null); }
+
+    mergeBtn.addEventListener('click', onMerge);
+    replaceBtn.addEventListener('click', onReplace);
+    modal.addEventListener('hidden.bs.modal', onHidden);
+    bsModal.show();
+  });
+}
+
 function exportEmployees() {
   window.location.href = `${API_BASE}/employees/export`;
 }
@@ -267,8 +327,13 @@ async function importEmployees(input) {
   const file = input.files[0];
   if (!file) return;
 
+  // Ask user for import mode
+  const mode = await showImportModeDialog();
+  if (!mode) { input.value = ''; return; } // cancelled
+
   const formData = new FormData();
   formData.append('file', file);
+  formData.append('mode', mode);
 
   try {
     showToast('匯入中...', 'info');
