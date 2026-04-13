@@ -188,7 +188,7 @@ router.put('/:id', (req, res) => {
     const updatedActive = active !== undefined ? Number(active) : existing.active;
 
     // Validate position if provided
-    if (position && !['店長', '副店長', '藥師', '正職', '兼職'].includes(position)) {
+    if (position && !['店長', '副店長', '藥師副店長', '藥師', '正職', '兼職'].includes(position)) {
       return res.status(400).json({ success: false, message: '無效的職位' });
     }
 
@@ -272,7 +272,7 @@ router.post('/import', upload.single('file'), (req, res) => {
       storeByName[s.name] = s.id;
     });
 
-    const validPositions = ['店長', '副店長', '藥師', '正職', '兼職'];
+    const validPositions = ['店長', '副店長', '藥師副店長', '藥師', '正職', '兼職'];
     const errors = [];
     let updated = 0;
     let created = 0;

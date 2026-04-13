@@ -190,7 +190,7 @@ function updateWeightPreview() {
   const position = document.getElementById('empPosition')?.value || '';
 
   const senWeight = seniority >= 3 ? 1.2 : seniority >= 1 ? 1.0 : 0.8;
-  const posWeights = { '店長': 1.3, '副店長': 1.15, '藥師': 1.2, '正職': 1.0, '兼職': 0.85 };
+  const posWeights = { '店長': 1.3, '副店長': 1.15, '藥師副店長': 1.2, '藥師': 1.2, '正職': 1.0, '兼職': 0.85 };
   const posWeight = posWeights[position] || 1.0;
   const totalWeight = (senWeight * posWeight).toFixed(3);
 

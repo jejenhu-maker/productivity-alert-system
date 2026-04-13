@@ -126,6 +126,7 @@ function statusBadge(status) {
 const POSITION_CLS = {
   '店長': 'manager',
   '副店長': 'manager',
+  '藥師副店長': 'pharmacist',
   '藥師': 'pharmacist',
   '正職': 'fulltime',
   '兼職': 'parttime',
